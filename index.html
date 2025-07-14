@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon Crawler Card Generator</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- html2canvas for downloading the card as an image -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Custom Google Font for the RPG feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Apply custom fonts */
+        body {
+            font-family: 'Lato', sans-serif;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+        /* Custom styling for the card border */
+        .card-border {
+            border: 10px solid #a1887f; /* A brownish border */
+            border-image: linear-gradient(to bottom right, #6d4c41, #d7ccc8, #6d4c41) 1;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        /* Custom styling for input fields */
+        .form-input, .form-textarea {
+            @apply w-full bg-gray-700 text-white border border-gray-600 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all;
+            color-scheme: dark; 
+        }
+        .form-label {
+            @apply block text-sm font-bold text-amber-300 mb-1;
+        }
+        
+        /* --- Image & Card Styling --- */
+        #card-preview {
+            position: relative; /* Needed for absolute positioning of the background */
+            overflow: hidden; /* Ensures the background image doesn't spill out */
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            transition: background-image 0.2s ease-in-out;
+            aspect-ratio: 55 / 85;
+        }
+        #preview-image-container, #preview-pet-image {
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            transition: all 0.1s ease-out;
+        }
+        #card-content-wrapper {
+            position: relative;
+            z-index: 2; /* Keeps content above the background image */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        /* When in full-bg mode, give content boxes a semi-transparent background */
+        .full-bg-active #card-content-wrapper .content-box {
+             background-color: rgba(245, 240, 225, 0.65) !important; /* Increased transparency */
+             backdrop-filter: blur(3px);
+        }
+        #preview-catchphrase {
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white p-4 lg:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl lg:text-5xl font-cinzel text-amber-400">Dungeon Crawler Card Generator</h1>
+            <p class="text-gray-400 mt-2">Create your own Crawler card based on the world of Dungeon Crawler Carl.</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+
+            <!-- Left Side: Form Controls -->
+            <div class="lg:w-1/3 bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-cinzel text-amber-400 border-b-2 border-amber-500/30 pb-2 mb-4">Crawler Details</h2>
+                
+                <div class="space-y-4">
+                    <!-- Crawler Info -->
+                    <div><label for="crawlerName" class="form-label">Crawler Name</label><input type="text" id="crawlerName" class="form-input" placeholder="e.g., Princess Donut"></div>
+                    <div><label for="crawlerNickname" class="form-label">Nickname / Title</label><input type="text" id="crawlerNickname" class="form-input" placeholder="e.g., The Queen Anne Chonk"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label for="crawlerNumber" class="form-label">Crawler #</label><input type="text" id="crawlerNumber" class="form-input" placeholder="e.g., #4,119"></div>
+                        <div><label for="crawlerLevel" class="form-label">Level</label><input type="number" id="crawlerLevel" class="form-input" value="1"></div>
+                    </div>
+                     <div>
+                        <label for="crawlerRace" class="form-label">Race</label><input type="text" id="crawlerRace" class="form-input" placeholder="e.g., Persian Cat">
+                    </div>
+                    <div>
+                        <label for="crawlerClass" class="form-label">Class</label><input type="text" id="crawlerClass" class="form-input" placeholder="e.g., Former Child Actress">
+                        <div class="flex items-center mt-2"><input id="hasClass" type="checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-amber-600 focus:ring-amber-500"><label for="hasClass" class="ml-2 block text-sm text-gray-300">Has Subclass?</label></div>
+                        <div id="subclass-details" class="hidden mt-2"><label for="crawlerSubclass" class="form-label">Subclass</label><input type="text" id="crawlerSubclass" class="form-input" placeholder="e.g., Legendary Diva"></div>
+                    </div>
+                    
+                    <!-- Image Controls -->
+                    <div>
+                        <label class="form-label">Character Image</label>
+                        <label for="imageUpload" class="w-full inline-block text-center bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors">Upload Image</label>
+                        <input type="file" id="imageUpload" class="hidden" accept="image/*">
+                        <input type="hidden" id="imageUrl">
+                        <p class="text-xs text-gray-400 mt-1 pl-1">For best results, use a portrait-style image (e.g., 4:5 ratio).</p>
+                    </div>
+                    <div id="image-adjust-controls" class="hidden space-y-3 pt-3">
+                         <h3 class="text-xl font-cinzel text-amber-400 border-b border-amber-500/20 pb-1 mb-1">Image Adjustments</h3>
+                         <div class="flex items-center"><input id="fullBgImage" type="checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-amber-600 focus:ring-amber-500"><label for="fullBgImage" class="ml-2 block text-sm text-gray-300">Use as Full Background</label></div>
+                         <div><label for="imageZoom" class="form-label">Zoom</label><input type="range" id="imageZoom" min="50" max="300" value="100" step="1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"></div>
+                         <div><label for="imagePanX" class="form-label">Pan Left/Right</label><input type="range" id="imagePanX" min="0" max="100" value="50" step="1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"></div>
+                         <div><label for="imagePanY" class="form-label">Pan Up/Down</label><input type="range" id="imagePanY" min="0" max="100" value="50" step="1" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"></div>
+                         <button id="resetImageBtn" class="w-full text-sm bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-4 rounded-lg transition-colors">Reset Image</button>
+                    </div>
+                    
+                    <!-- Stats -->
+                    <h3 class="text-xl font-cinzel text-amber-400 border-b border-amber-500/20 pt-4 pb-1 mb-2">Primary Stats</h3>
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                        <div><label for="statStr" class="form-label">Strength</label><input type="number" id="statStr" class="form-input" value="10"></div>
+                        <div><label for="statDex" class="form-label">Dexterity</label><input type="number" id="statDex" class="form-input" value="10"></div>
+                        <div><label for="statCon" class="form-label">Constitution</label><input type="number" id="statCon" class="form-input" value="10"></div>
+                        <div><label for="statInt" class="form-label">Intelligence</label><input type="number" id="statInt" class="form-input" value="10"></div>
+                        <div><label for="statWis" class="form-label">Wisdom</label><input type="number" id="statWis" class="form-input" value="10"></div>
+                        <div><label for="statCha" class="form-label">Charisma</label><input type="number" id="statCha" class="form-input" value="10"></div>
+                    </div>
+                    
+                    <!-- Skills, Party, etc. -->
+                    <div><label for="skills" class="form-label">Skills / Perks / Mutations</label><textarea id="skills" class="form-textarea" rows="4" placeholder="• Clockwork Triplicate&#10;• Love Vampire&#10;• Cockroach"></textarea></div>
+                    <h3 class="text-xl font-cinzel text-amber-400 border-b border-amber-500/20 pt-4 pb-1 mb-2">Party & Companion</h3>
+                    <div><label for="party" class="form-label">Party Members</label><textarea id="party" class="form-textarea" rows="2" placeholder="e.g., The Royal Court of Princess Donut"></textarea></div>
+                    <div class="flex items-center mt-2"><input id="hasPet" type="checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-amber-600 focus:ring-amber-500"><label for="hasPet" class="ml-2 block text-sm text-gray-300">Has Pet / Companion?</label></div>
+                    <div id="pet-details" class="hidden mt-2 space-y-2">
+                        <div><label for="petName" class="form-label">Pet Name</label><input type="text" id="petName" class="form-input" placeholder="e.g., Mongo"></div>
+                        <div class="flex items-center"><input id="addPetImage" type="checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-amber-600 focus:ring-amber-500"><label for="addPetImage" class="ml-2 block text-sm text-gray-300">Add Pet Image?</label></div>
+                        <div id="pet-image-url-container" class="hidden">
+                             <label class="form-label">Pet Image</label>
+                             <label for="petImageUpload" class="w-full inline-block text-center bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors">Upload Pet Image</label>
+                             <input type="file" id="petImageUpload" class="hidden" accept="image/*">
+                             <input type="hidden" id="petImageUrl">
+                        </div>
+                    </div>
+                    <div><label for="catchphrase" class="form-label">Catchphrase / Quote</label><textarea id="catchphrase" class="form-textarea" rows="2" placeholder="e.g., &quot;Mongo is Appalled&quot;"></textarea></div>
+                </div>
+
+                <div class="mt-8 flex justify-center">
+                    <button id="downloadBtn" class="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Download Card</button>
+                </div>
+            </div>
+
+            <!-- Right Side: Card Preview -->
+            <div class="lg:w-2/3 flex justify-center items-start">
+                <div id="card-preview" class="w-full max-w-md bg-[#e0d6c6] text-gray-800 p-1 rounded-lg card-border">
+                    <div id="card-content-wrapper" class="p-4 rounded-md bg-[#f5f0e1]">
+                        <header class="text-center border-b-4 border-double border-[#a1887f] pb-2 mb-1 flex-shrink-0">
+                            <div class="flex justify-between items-baseline"><p id="preview-crawlerNumber" class="text-sm font-bold text-[#5d4037]">CRAWLER #1234</p><p id="preview-crawlerLevel" class="text-sm font-bold text-[#5d4037]">LEVEL 1</p></div>
+                            <h2 id="preview-crawlerName" class="text-2xl font-cinzel text-[#5d4037]">Character Name</h2>
+                            <p id="preview-crawlerNickname" class="font-bold text-[#5d4037]">Nickname</p>
+                        </header>
+                        
+                        <div id="preview-image-container" style="flex-grow: 1; min-height: 150px; aspect-ratio: 5 / 4;" class="my-4 rounded-md bg-gray-300"></div>
+
+                        <div class="grid grid-cols-12 gap-2 flex-shrink-0">
+                            <div class="col-span-4 bg-[#e0d6c6]/70 p-2 rounded-lg content-box">
+                                <ul class="text-sm space-y-1 font-bold">
+                                    <li class="grid grid-cols-[1fr,auto] gap-x-2"><span>STR</span><span id="preview-statStr" class="text-right">10</span></li>
+                                    <li class="grid grid-cols-[1fr,auto] gap-x-2"><span>DEX</span><span id="preview-statDex" class="text-right">10</span></li>
+                                    <li class="grid grid-cols-[1fr,auto] gap-x-2"><span>CON</span><span id="preview-statCon" class="text-right">10</span></li>
+                                    <li class="grid grid-cols-[1fr,auto] gap-x-2"><span>INT</span><span id="preview-statInt" class="text-right">10</span></li>
+                                    <li class="grid grid-cols-[1fr,auto] gap-x-2"><span>WIS</span><span id="preview-statWis" class="text-right">10</span></li>
+                                    <li class="grid grid-cols-[1fr,auto] gap-x-2"><span>CHA</span><span id="preview-statCha" class="text-right">10</span></li>
+                                </ul>
+                            </div>
+                            <div class="col-span-8 space-y-2">
+                                <div class="bg-[#e0d6c6]/70 p-2 rounded-lg content-box">
+                                    <h4 class="text-xs font-bold text-[#8d6e63]">RACE & CLASS</h4>
+                                    <div class="h-px bg-[#a1887f]/50 my-1"></div>
+                                    <p id="preview-crawlerRace" class="text-sm font-semibold">Race</p>
+                                    <p id="preview-crawlerClass" class="text-sm font-semibold">Class Name</p>
+                                    <p id="preview-crawlerSubclass" class="text-xs italic text-gray-600"></p>
+                                </div>
+                                <div class="bg-[#e0d6c6]/70 p-2 rounded-lg content-box">
+                                    <h4 class="text-xs font-bold text-[#8d6e63]">SKILLS & PERKS</h4>
+                                    <div class="h-px bg-[#a1887f]/50 my-1"></div>
+                                    <p id="preview-skills" class="text-xs whitespace-pre-wrap">Skills list here.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2 bg-[#e0d6c6]/70 p-3 rounded-lg content-box flex-shrink-0">
+                            <h4 class="text-xs font-bold text-[#8d6e63]">PARTY & COMPANION</h4>
+                            <div class="h-px bg-[#a1887f]/50 my-1"></div>
+                            <div class="flex items-center gap-3 pt-1">
+                                <div id="preview-pet-image" class="w-12 h-12 rounded-full bg-gray-400/50 hidden flex-shrink-0 border-2 border-gray-500/50"></div>
+                                <p id="preview-party" class="text-sm font-semibold whitespace-pre-wrap flex-grow">Party members here.</p>
+                            </div>
+                        </div>
+                        <div id="preview-catchphrase" class="text-center border-t-2 border-[#a1887f] pt-2 font-semibold italic text-[#6d4c41]">"Catchphrase goes here."</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM ELEMENT REFERENCES ---
+            const dom = {
+                petDetails: document.getElementById('pet-details'),
+                hasPet: document.getElementById('hasPet'),
+                addPetImage: document.getElementById('addPetImage'),
+                petImageUrlContainer: document.getElementById('pet-image-url-container'),
+                petImageUrl: document.getElementById('petImageUrl'),
+                petImageUpload: document.getElementById('petImageUpload'),
+                previewPetImage: document.getElementById('preview-pet-image'),
+                subclassDetails: document.getElementById('subclass-details'),
+                hasClass: document.getElementById('hasClass'),
+                imageAdjustControls: document.getElementById('image-adjust-controls'),
+                imageUrl: document.getElementById('imageUrl'),
+                imageUpload: document.getElementById('imageUpload'),
+                fullBgImage: document.getElementById('fullBgImage'),
+                cardPreview: document.getElementById('card-preview'),
+                imageContainer: document.getElementById('preview-image-container'),
+                cardContentWrapper: document.getElementById('card-content-wrapper'),
+                imageZoom: document.getElementById('imageZoom'),
+                imagePanX: document.getElementById('imagePanX'),
+                imagePanY: document.getElementById('imagePanY'),
+            };
+
+            // --- LIVE CARD PREVIEW LOGIC ---
+            const textFields = { crawlerName: 'preview-crawlerName', crawlerNickname: 'preview-crawlerNickname', crawlerNumber: 'preview-crawlerNumber', crawlerLevel: 'preview-crawlerLevel', crawlerRace: 'preview-crawlerRace', crawlerClass: 'preview-crawlerClass', crawlerSubclass: 'preview-crawlerSubclass', statStr: 'preview-statStr', statDex: 'preview-statDex', statCon: 'preview-statCon', statInt: 'preview-statInt', statWis: 'preview-statWis', statCha: 'preview-statCha', skills: 'preview-skills', catchphrase: 'preview-catchphrase' };
+
+            function updatePreview() {
+                // Update text fields
+                for (const [inputId, previewId] of Object.entries(textFields)) {
+                    const inputEl = document.getElementById(inputId);
+                    const previewEl = document.getElementById(previewId);
+                    if (!inputEl || !previewEl) continue;
+
+                    if (inputId === 'crawlerLevel') previewEl.textContent = `LEVEL ${inputEl.value || '1'}`;
+                    else if (inputId === 'crawlerSubclass') previewEl.textContent = dom.hasClass.checked ? (inputEl.value || 'Subclass not specified') : '';
+                    else previewEl.textContent = inputEl.value || inputEl.placeholder;
+                }
+
+                // Update Image Logic
+                const imageUrl = dom.imageUrl.value;
+                const zoom = dom.imageZoom.value;
+                const panX = dom.imagePanX.value;
+                const panY = dom.imagePanY.value;
+                const isFullBg = dom.fullBgImage.checked && imageUrl;
+
+                dom.imageAdjustControls.classList.toggle('hidden', !imageUrl);
+                
+                if (isFullBg) {
+                    dom.cardPreview.style.backgroundImage = `url(${imageUrl})`;
+                    dom.cardPreview.style.backgroundSize = `${zoom}%`;
+                    dom.cardPreview.style.backgroundPosition = `${panX}% ${panY}%`;
+                    dom.imageContainer.style.display = 'block';
+                    dom.imageContainer.style.backgroundColor = 'transparent';
+                    dom.imageContainer.style.backgroundImage = 'none';
+                    dom.cardPreview.classList.add('full-bg-active');
+                    dom.cardContentWrapper.style.backgroundColor = 'transparent';
+                } else {
+                    dom.cardPreview.style.backgroundImage = 'none';
+                    dom.imageContainer.style.display = 'block';
+                    dom.imageContainer.style.backgroundImage = imageUrl ? `url(${imageUrl})` : 'none';
+                    dom.imageContainer.style.backgroundColor = imageUrl ? '' : '#d1d5db';
+                    dom.imageContainer.style.backgroundSize = `${zoom}%`;
+                    dom.imageContainer.style.backgroundPosition = `${panX}% ${panY}%`;
+                    dom.cardPreview.classList.remove('full-bg-active');
+                    dom.cardContentWrapper.style.backgroundColor = '#f5f0e1';
+                }
+
+                // Update Party & Companion
+                const partyInput = document.getElementById('party');
+                let partyContent = partyInput.value;
+                if (dom.hasPet.checked) {
+                    const petNameInput = document.getElementById('petName');
+                    const petName = petNameInput.value || petNameInput.placeholder;
+                    if (petName) {
+                        const companionString = `Companion: ${petName}`;
+                        partyContent = partyContent ? `${partyContent}\n${companionString}` : companionString;
+                    }
+                    // Pet Image Logic
+                    const showPetImage = dom.addPetImage.checked;
+                    const petImageUrl = dom.petImageUrl.value;
+                    dom.previewPetImage.classList.toggle('hidden', !showPetImage);
+                    if(showPetImage) {
+                        dom.previewPetImage.style.backgroundImage = petImageUrl ? `url(${petImageUrl})` : 'none';
+                    }
+                } else {
+                     dom.previewPetImage.classList.add('hidden');
+                }
+                document.getElementById('preview-party').textContent = partyContent || partyInput.placeholder || 'No party or companion listed.';
+            }
+
+            // --- EVENT LISTENERS ---
+            const allInputs = [...Object.keys(textFields), 'party', 'petName', 'imageZoom', 'imagePanX', 'imagePanY'];
+            allInputs.forEach(id => document.getElementById(id)?.addEventListener('input', updatePreview));
+            
+            function handleImageUpload(event, targetInput) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        targetInput.value = e.target.result;
+                        updatePreview();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            dom.imageUpload.addEventListener('change', (e) => handleImageUpload(e, dom.imageUrl));
+            dom.petImageUpload.addEventListener('change', (e) => handleImageUpload(e, dom.petImageUrl));
+            
+            dom.hasClass.addEventListener('change', () => { dom.subclassDetails.classList.toggle('hidden', !dom.hasClass.checked); updatePreview(); });
+            dom.hasPet.addEventListener('change', () => { 
+                const isChecked = dom.hasPet.checked;
+                dom.petDetails.classList.toggle('hidden', !isChecked); 
+                if (!isChecked) { // If main pet checkbox is unchecked, also uncheck and hide image controls
+                    dom.addPetImage.checked = false;
+                    dom.petImageUrlContainer.classList.add('hidden');
+                }
+                updatePreview(); 
+            });
+            dom.addPetImage.addEventListener('change', () => { dom.petImageUrlContainer.classList.toggle('hidden', !dom.addPetImage.checked); updatePreview(); });
+            dom.fullBgImage.addEventListener('change', updatePreview);
+            document.getElementById('resetImageBtn').addEventListener('click', () => {
+                dom.imageZoom.value = 100; dom.imagePanX.value = 50; dom.imagePanY.value = 50; updatePreview();
+            });
+
+            // --- CARD ACTIONS ---
+            document.getElementById('downloadBtn').addEventListener('click', () => { html2canvas(dom.cardPreview, { useCORS: true, backgroundColor: null }).then(canvas => { const link = document.createElement('a'); link.download = 'dungeon-crawler-card.png'; link.href = canvas.toDataURL('image/png'); link.click(); }); });
+            
+            // --- STARTUP ---
+            updatePreview();
+        });
+    </script>
+</body>
+</html>
